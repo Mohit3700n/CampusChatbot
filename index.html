@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus AI Assistant</title>
+    <!-- Importing Marked.js for Markdown Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* Base Variables for Light/Dark Mode */
+        :root {
+            --bg-color: #f0f2f5;
+            --chat-bg: #ffffff;
+            --text-color: #000000;
+            --bot-msg-bg: #e4e6eb;
+            --user-msg-bg: #007bff;
+            --header-bg: #007bff;
+            --border-color: #ccc;
+        }
+
+        .dark-mode {
+            --bg-color: #121212;
+            --chat-bg: #1e1e1e;
+            --text-color: #ffffff;
+            --bot-msg-bg: #333333;
+            --user-msg-bg: #0a84ff;
+            --header-bg: #1f1f1f;
+            --border-color: #444;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; transition: 0.3s; color: var(--text-color); }
+        
+        #chat-container { width: 100%; max-width: 700px; background: var(--chat-bg); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); overflow: hidden; display: flex; flex-direction: column; height: 85vh; border: 1px solid var(--border-color); transition: 0.3s; }
+        
+        /* Header with Action Tools */
+        #header { background: var(--header-bg); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 1.2em; }
+        .header-tools { display: flex; gap: 10px; }
+        .icon-btn { background: rgba(255, 255, 255, 0.2); border: none; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; transition: 0.3s; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+        .icon-btn:hover { background: rgba(255, 255, 255, 0.4); }
+
+        #chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        
+        .msg { max-width: 85%; padding: 12px 18px; border-radius: 15px; line-height: 1.5; word-wrap: break-word; font-size: 15px; }
+        .user-msg { background: var(--user-msg-bg); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .bot-msg { background: var(--bot-msg-bg); color: var(--text-color); align-self: flex-start; border-bottom-left-radius: 2px; width: 100%; box-sizing: border-box; }
+        
+        /* Quick Action Chips */
+        .chip-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .chip { background: transparent; border: 1px solid var(--user-msg-bg); color: var(--text-color); padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: 0.2s; }
+        .chip:hover { background: var(--user-msg-bg); color: white; }
+
+        /* Markdown Styles */
+        .bot-msg p { margin: 0 0 10px 0; }
+        .bot-msg p:last-child { margin: 0; }
+        .bot-msg table { border-collapse: collapse; width: 100%; margin-top: 10px; margin-bottom: 10px; color: var(--text-color); }
+        .bot-msg th, .bot-msg td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
+        .bot-msg th { background-color: rgba(0,0,0,0.1); }
+        .bot-msg ul, .bot-msg ol { margin: 5px 0 10px 20px; padding: 0; }
+        .bot-msg pre { background: #2d2d2d; color: #fff; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .bot-msg code { background: rgba(128,128,128,0.2); padding: 2px 4px; border-radius: 3px; font-family: monospace; }
+
+        #input-area { display: flex; padding: 15px; border-top: 1px solid var(--border-color); background: var(--chat-bg); gap: 10px; align-items: center; }
+        #user-input { flex: 1; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: 25px; outline: none; font-size: 15px; background: var(--bg-color); color: var(--text-color); }
+        
+        .action-btn { border: none; padding: 12px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; color: white; transition: 0.3s; }
+        #send-btn { background: var(--user-msg-bg); }
+        #send-btn:hover { filter: brightness(0.9); }
+        #mic-btn { background: #28a745; border-radius: 50%; width: 45px; height: 45px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+        #mic-btn:hover { background: #218838; }
+        
+        .typing-indicator { display: flex; align-items: center; gap: 4px; padding: 15px; background: var(--bot-msg-bg); width: fit-content; border-radius: 15px; border-bottom-left-radius: 2px; margin-bottom: 10px; }
+        .dot { width: 8px; height: 8px; background-color: #90949c; border-radius: 50%; animation: blink 1.4s infinite both; }
+        .dot:nth-child(1) { animation-delay: 0.2s; }
+        .dot:nth-child(2) { animation-delay: 0.4s; }
+        .dot:nth-child(3) { animation-delay: 0.6s; }
+        @keyframes blink { 0% { opacity: 0.2; } 20% { opacity: 1; } 100% { opacity: 0.2; } }
+        
+        input:disabled, button:disabled { opacity: 0.6; cursor: not-allowed !important; }
+    </style>
+</head>
+<body>
+
+<div id="chat-container">
+    <div id="header">
+        <span>🏫 Campus AI</span>
+        <div class="header-tools">
+            <button class="icon-btn" onclick="exportChat()" title="Download Chat">📥 Export</button>
+            <button class="icon-btn" onclick="clearChat()" title="Clear Chat">🗑️ Clear</button>
+            <button class="icon-btn" onclick="toggleDarkMode()" title="Toggle Dark Mode">🌙</button>
+        </div>
+    </div>
+    <div id="chat-box">
+        <div class="msg bot-msg">
+            Hello! I am your AI campus assistant. How can I help you today?
+            <div class="chip-container" id="suggestions">
+                <button class="chip" onclick="sendQuickMessage('What is the fee structure for B.Tech?')">Fee Structure</button>
+                <button class="chip" onclick="sendQuickMessage('What are the college timings?')">College Timings</button>
+                <button class="chip" onclick="sendQuickMessage('Tell me about hostel facilities')">Hostel Info</button>
+                <button class="chip" onclick="sendQuickMessage('Who is the HOD of AI/ML?')">HOD AI/ML</button>
+            </div>
+        </div>
+    </div>
+    <div id="input-area">
+        <button id="mic-btn" onclick="startVoiceInput()" title="Click to Speak">🎤</button>
+        <input type="text" id="user-input" placeholder="Type your question..." onkeypress="handleKeyPress(event)">
+        <button id="send-btn" class="action-btn" onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+    let chatHistory = [];
+    let isWaiting = false;
+
+    // --- NEW UI FEATURES ---
+
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        document.querySelector('[title="Toggle Dark Mode"]').innerText = isDark ? "☀️" : "🌙";
+    }
+
+    function clearChat() {
+        if(confirm("Are you sure you want to clear the chat history?")) {
+            chatHistory = [];
+            const chatBox = document.getElementById("chat-box");
+            // Keep only the first welcome message
+            chatBox.innerHTML = `
+                <div class="msg bot-msg">
+                    Hello! I am your AI campus assistant. How can I help you today?
+                    <div class="chip-container" id="suggestions">
+                        <button class="chip" onclick="sendQuickMessage('What is the fee structure for B.Tech?')">Fee Structure</button>
+                        <button class="chip" onclick="sendQuickMessage('What are the college timings?')">College Timings</button>
+                        <button class="chip" onclick="sendQuickMessage('Tell me about hostel facilities')">Hostel Info</button>
+                        <button class="chip" onclick="sendQuickMessage('Who is the HOD of AI/ML?')">HOD AI/ML</button>
+                    </div>
+                </div>`;
+        }
+    }
+
+    function exportChat() {
+        if(chatHistory.length === 0) {
+            alert("Chat is empty. Nothing to export.");
+            return;
+        }
+        let exportText = "--- Campus AI Chat History ---\n\n";
+        chatHistory.forEach(msg => {
+            let role = msg.role === 'user' ? "You" : "AI";
+            exportText += `[${role}]: ${msg.content}\n\n`;
+        });
+        
+        const blob = new Blob([exportText], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "Campus_AI_Chat.txt";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function sendQuickMessage(text) {
+        document.getElementById("user-input").value = text;
+        // Hide chips after first use to keep UI clean
+        const chips = document.getElementById("suggestions");
+        if(chips) chips.style.display = 'none';
+        sendMessage();
+    }
+
+    // --- CORE CHAT LOGIC ---
+
+    async function sendMessage() {
+        if (isWaiting) return;
+
+        const inputField = document.getElementById("user-input");
+        const message = inputField.value.trim();
+        if (!message) return;
+
+        // Hide chips if user types manually
+        const chips = document.getElementById("suggestions");
+        if(chips) chips.style.display = 'none';
+
+        isWaiting = true;
+        setUIState(true);
+
+        appendMessage(message, "user-msg");
+        inputField.value = "";
+
+        const typingId = showTyping();
+
+        try {
+            const response = await fetch("http://127.0.0.1:8000/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query: message, history: chatHistory })
+            });
+
+            const data = await response.json();
+            removeTyping(typingId);
+
+            if (!response.ok) throw new Error("API failed");
+            
+            const botAnswer = data.answer || "Sorry, I could not generate a response.";
+            appendMessage(botAnswer, "bot-msg");
+
+            chatHistory.push({ role: "user", content: String(message) });
+            chatHistory.push({ role: "bot", content: String(botAnswer) });
+
+        } catch (error) {
+            removeTyping(typingId);
+            appendMessage("Error: Could not connect to the server.", "bot-msg");
+        } finally {
+            isWaiting = false;
+            setUIState(false);
+            inputField.focus(); 
+        }
+    }
+
+    function setUIState(disabled) {
+        document.getElementById("user-input").disabled = disabled;
+        document.getElementById("send-btn").disabled = disabled;
+        document.getElementById("mic-btn").disabled = disabled;
+    }
+
+    function appendMessage(text, className) {
+        const chatBox = document.getElementById("chat-box");
+        const msgDiv = document.createElement("div");
+        msgDiv.className = `msg ${className}`;
+        
+        if (className === "bot-msg") {
+            msgDiv.innerHTML = marked.parse(text);
+        } else {
+            msgDiv.innerText = text; 
+        }
+        
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight; 
+    }
+
+    function showTyping() {
+        const chatBox = document.getElementById("chat-box");
+        const typingDiv = document.createElement("div");
+        const uniqueId = "typing-" + Date.now();
+        typingDiv.id = uniqueId;
+        typingDiv.className = "typing-indicator";
+        typingDiv.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+        chatBox.appendChild(typingDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        return uniqueId;
+    }
+
+    function removeTyping(id) {
+        const typingDiv = document.getElementById(id);
+        if (typingDiv) typingDiv.remove();
+    }
+
+    function handleKeyPress(event) {
+        if (event.key === "Enter") sendMessage();
+    }
+
+    // --- VOICE INPUT LOGIC ---
+    function startVoiceInput() {
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            alert("Your browser does not support Voice Input. Please use Google Chrome.");
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        const micBtn = document.getElementById("mic-btn");
+        const inputField = document.getElementById("user-input");
+
+        recognition.lang = 'en-IN'; 
+        recognition.interimResults = false;
+
+        recognition.onstart = function() {
+            micBtn.style.backgroundColor = "#ff4d4d"; 
+            inputField.placeholder = "Listening... Speak now.";
+        };
+
+        recognition.onresult = function(event) {
+            inputField.value = event.results[0][0].transcript;
+        };
+
+        recognition.onerror = function() {
+            inputField.placeholder = "Error recognizing voice. Try again.";
+        };
+
+        recognition.onend = function() {
+            micBtn.style.backgroundColor = "#28a745"; 
+            inputField.placeholder = "Type your question...";
+            if (inputField.value.trim() !== "") sendMessage();
+        };
+
+        recognition.start();
+    }
+</script>
+
+</body>
+</html>
