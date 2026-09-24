@@ -6,7 +6,7 @@ from langchain_community.vectorstores import Chroma
 def build_vector_db():
     print("Loading data...")
     # 1. Load the Markdown file
-    loader = TextLoader("college_data.md", encoding="utf-8")
+    loader = TextLoader("college_data_cleaned.md", encoding="utf-8")
     docs = loader.load()
 
     # 2. Split into chunks

@@ -54,7 +54,7 @@ ensemble_retriever = EnsembleRetriever(
 )
 
 # 4. Add Cross-Encoder Reranker (The Judge)
-# Ye model query aur combined chunks ko re-evaluate karega aur strictly filter karega
+# Ye model query aur combined chunks ko re-evaluate karega aur strictly
 print("Loading Cross-Encoder Reranker...")
 cross_encoder = HuggingFaceCrossEncoder(model_name="cross-encoder/ms-marco-MiniLM-L-6-v2")
 compressor = CrossEncoderReranker(model=cross_encoder, top_n=3) # Final sirf top 3 chunks LLM ko jayenge
@@ -70,10 +70,11 @@ llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.2)
 
 # Strict Prompt Template
 prompt_template = PromptTemplate(
-    template="""You are a strict, helpful AI assistant for the college campus. 
-    Answer ONLY using the provided Context below. 
+    template="""You are a strict, helpful, and student-friendly AI assistant for a college campus.
+    Your main purpose is to help students, faculty, and visitors with college-related questions such as academics, departments, courses, examinations, admissions, fees, campus facilities, events, placements, library, timetable, attendance, rules, clubs, laboratories, and general student guidance.
+    Use the provided Context as the primary source. If the Context does not contain enough information, provide useful general guidance while clearly distinguishing it from confirmed college-specific information. 
     If the answer is not in the Context, explicitly say 'I do not have this information, please contact the admin'. DO NOT guess or hallucinate.
-    CRITICAL: You must generate your final response entirely in the exact language the user used in their original query.
+    CRITICAL: You must generate your final response entirely in the exact language the user used in their original query if it ask query in hinglish language then you have to provide answer in hinglish language and so on.
 
     Previous Chat History:
     {history}

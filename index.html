@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Campus AI Assistant</title>
+    <title>SJCEM Campus Chatbot</title>
     <!-- Importing Marked.js for Markdown Rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
@@ -28,9 +28,21 @@
             --border-color: #444;
         }
 
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; transition: 0.3s; color: var(--text-color); }
+        .img-style {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: row;
+            gap: 20px;
+        }
+
+        .white-bg {
+            background-color: white;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); margin: 0; padding: 0px; display: flex; justify-content: center; transition: 0.3s; color: var(--text-color); }
         
-        #chat-container { width: 100%; max-width: 700px; background: var(--chat-bg); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); overflow: hidden; display: flex; flex-direction: column; height: 85vh; border: 1px solid var(--border-color); transition: 0.3s; }
+        #chat-container { width: 100%; max-width: 100%; background: var(--chat-bg); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); overflow: hidden; display: flex; flex-direction: column; height: 100vh; border: 1px solid var(--border-color); transition: 0.3s; }
         
         /* Header with Action Tools */
         #header { background: var(--header-bg); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 1.2em; }
@@ -82,7 +94,7 @@
 
 <div id="chat-container">
     <div id="header">
-        <span>🏫 Campus AI</span>
+        <span class="img-style"><img class="white-bg" src="logo.png" alt="logo" width="50"> SJCEM Campus Chatbot</span>
         <div class="header-tools">
             <button class="icon-btn" onclick="exportChat()" title="Download Chat">📥 Export</button>
             <button class="icon-btn" onclick="clearChat()" title="Clear Chat">🗑️ Clear</button>
@@ -91,7 +103,7 @@
     </div>
     <div id="chat-box">
         <div class="msg bot-msg">
-            Hello! I am your AI campus assistant. How can I help you today?
+            Hello! I am your SJCEM Campus Assistant. How can I help you today?
             <div class="chip-container" id="suggestions">
                 <button class="chip" onclick="sendQuickMessage('What is the fee structure for B.Tech?')">Fee Structure</button>
                 <button class="chip" onclick="sendQuickMessage('What are the college timings?')">College Timings</button>
