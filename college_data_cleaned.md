@@ -2506,3 +2506,81 @@ Per department records, this floor is dedicated to **Diploma (Polytechnic) stude
 
   MMS Hall                            Second Floor, A-Wing
   -----------------------------------------------------------------------
+
+  # College Rules
+
+## 1. Attendance Rule
+
+The college is strict about student attendance.
+
+- Every student must maintain **at least 75% attendance**.
+- If a student's attendance is **below 75% in a particular subject**, the student is **not eligible to attempt the examination for that subject**.
+- Examination eligibility is checked subject-wise based on the student's attendance.
+
+### Hall Ticket Attendance Verification
+
+The hall ticket is generally generated **1 to 2 days before the examination**.
+
+Before generating the hall ticket, attendance eligibility is checked for every student and every subject using **Y/N status**:
+
+- **Y (Yes):** Attendance is **greater than or equal to 75%**. The student is eligible to attempt the examination for that subject.
+- **N (No):** Attendance is **below 75%**. The student is not eligible / not allowed to attempt the examination for that subject.
+
+> **Important:** Attendance eligibility is checked separately for each subject.
+
+---
+
+## 2. Identity Card (ID Card) Rule
+
+The college is strict about carrying and wearing the student identity card.
+
+- Every student must **wear their college ID card while on campus**.
+- Students must wear the ID card **from the time they enter through the college gate until they exit from the college/campus gate**.
+
+### Visitors and Non-College Students
+
+The following persons get campus entry through the applicable visitor identification process:
+
+1. **Visitors**
+2. **Students coming for admission**
+3. **Students from other colleges participating in events on the campus**
+
+Such persons may be required to obtain a **visitor sticker or visitor identity (ID) card** for entry.
+
+---
+
+## 3. Lecture Timing and Late Entry Rule
+
+The college is strict about punctuality for lectures.
+
+- Students are expected to reach lectures on time.
+- If a student arrives approximately **20 to 25 minutes late**, either:
+  - the student may **not be permitted to enter the lecture**, or
+  - the student may be permitted to enter but **may not receive attendance for that lecture**.
+
+---
+
+## 4. Examination Reporting Time
+
+- Every student must be present in the examination hall **15 minutes before the scheduled examination time**.
+- If a student fails to report **15 minutes before the examination**, the student must obtain **permission with the required signature from the Examination Cell (E Cell)**.
+- After obtaining the required permission, the student can attempt the examination.
+
+> **Important:** Students should arrive before the required reporting time to avoid delays and the need for special permission.
+
+---
+
+## Quick Reference
+
+| Rule | Requirement |
+|---|---|
+| Minimum attendance | **75% or above** |
+| Attendance below 75% | Not eligible for that subject's examination |
+| Hall ticket status | **Y = Eligible, N = Not Eligible** |
+| Hall ticket generation | Generally **1–2 days before examination** |
+| Student ID card | Must be worn from campus entry until exit |
+| Visitor / external student entry | Visitor sticker or visitor ID |
+| Lecture late arrival | Around **20–25 minutes late** may result in no entry or no attendance |
+| Examination reporting | **15 minutes before exam time** |
+| Late for examination | Permission/signature from **Examination Cell (E Cell)** required |
+

@@ -4,7 +4,6 @@ from pydantic import BaseModel
 import os
 from typing import List
 
-# Naye Imports Advanced RAG ke liye
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import MarkdownTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -17,10 +16,10 @@ from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 
-# Yahan apni Groq API Key daalna
+# API Key Setup
 os.environ["GROQ_API_KEY"] = "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"
 
-app = FastAPI(title="College Bot API - Advanced RAG")
+app = FastAPI(title="SJCEM Campus Bot API - Pro RAG")
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,59 +31,68 @@ app.add_middleware(
 
 print("Booting up Advanced RAG Pipeline...")
 
-# 1. Load Raw Docs for BM25 (Keyword Search)
-loader = TextLoader("college_data.md", encoding="utf-8")
+# 1. Sahi File Load Karo aur Chunk Size Badhao (Tables aur Rules intact rakhne ke liye)
+DATA_FILE = "college_data_cleaned.md" # Make sure yehi file folder me ho
+loader = TextLoader(DATA_FILE, encoding="utf-8")
 docs = loader.load()
-splitter = MarkdownTextSplitter(chunk_size=500, chunk_overlap=50)
+
+# 1200 chunk size se poori table aur rules ek sath aayenge
+splitter = MarkdownTextSplitter(chunk_size=1200, chunk_overlap=200)
 chunks = splitter.split_documents(docs)
 
-# Initialize BM25 Retriever
+# Initialize BM25 Retriever (Keyword Search)
 bm25_retriever = BM25Retriever.from_documents(chunks)
-bm25_retriever.k = 5 # Keyword match se top 5 nikalega
+bm25_retriever.k = 8 
 
-# 2. Load ChromaDB for Vector Search (Semantic Match)
+# 2. ChromaDB ko Chunks ke sath Sync Karo (Semantic Search)
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-db = Chroma(persist_directory="./chroma_db", embedding_function=embeddings)
-chroma_retriever = db.as_retriever(search_kwargs={"k": 5}) # Vector match se top 5 nikalega
+# from_documents use karne se naya data hamesha index hoga
+db = Chroma.from_documents(
+    documents=chunks, 
+    embedding=embeddings, 
+    persist_directory="./chroma_db_updated"
+)
+chroma_retriever = db.as_retriever(search_kwargs={"k": 8})
 
 # 3. Combine both into an Ensemble Retriever (Hybrid Search)
-# Ye dono result ko combine karega 50-50 weightage ke sath
 ensemble_retriever = EnsembleRetriever(
     retrievers=[bm25_retriever, chroma_retriever], weights=[0.5, 0.5]
 )
 
-# 4. Add Cross-Encoder Reranker (The Judge)
-# Ye model query aur combined chunks ko re-evaluate karega aur strictly
+# 4. Cross-Encoder Reranker (Top 6 chunks bhejenge taaki koi detail miss na ho)
 print("Loading Cross-Encoder Reranker...")
 cross_encoder = HuggingFaceCrossEncoder(model_name="cross-encoder/ms-marco-MiniLM-L-6-v2")
-compressor = CrossEncoderReranker(model=cross_encoder, top_n=3) # Final sirf top 3 chunks LLM ko jayenge
+compressor = CrossEncoderReranker(model=cross_encoder, top_n=6)
 
-# Final Advanced Retriever pipeline
 advanced_retriever = ContextualCompressionRetriever(
     base_compressor=compressor, 
     base_retriever=ensemble_retriever
 )
 
-# Load LLM
-llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.2)
+# Temperature 0.4 rakha hai taaki missing info par smartly answer bana sake
+llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.4)
 
-# Strict Prompt Template
+# 5. SMART CONTEXTUAL ASSUMPTION PROMPT (No "I don't know" allowed)
 prompt_template = PromptTemplate(
-    template="""You are a strict, helpful, and student-friendly AI assistant for a college campus.
-    Your main purpose is to help students, faculty, and visitors with college-related questions such as academics, departments, courses, examinations, admissions, fees, campus facilities, events, placements, library, timetable, attendance, rules, clubs, laboratories, and general student guidance.
-    Use the provided Context as the primary source. If the Context does not contain enough information, provide useful general guidance while clearly distinguishing it from confirmed college-specific information. 
-    If the answer is not in the Context, explicitly say 'I do not have this information, please contact the admin'. DO NOT guess or hallucinate.
-    CRITICAL: You must generate your final response entirely in the exact language the user used in their original query if it ask query in hinglish language then you have to provide answer in hinglish language and so on.
+    template="""You are the official, intelligent AI Campus Assistant for St. John College of Engineering and Management (SJCEM), located in Village Vevoor, Manor Road, Palghar (East), under the Aldel Education Trust (NAAC A+ & NBA Accredited).
+
+    YOUR CORE DIRECTIVE:
+    1. PRIMARY SOURCE: Always prioritize the facts, tables, rules, and numbers provided in the 'Context' below.
+    2. NEVER REFUSE OR SAY "I DON'T KNOW": You are strictly forbidden from saying "I do not have this information", "Not mentioned in the context", or "Please contact the admin". 
+    3. SMART EXTRAPOLATION (When answer is missing from Context): If the user asks a question about SJCEM that is not explicitly covered in the Context, you MUST seamlessly generate a helpful, realistic, and confident answer by assuming standard practices of SJCEM, Mumbai University engineering colleges, and AICTE norms. 
+       - Stay strictly within the realistic boundaries of SJCEM (Departments: AI/ML, Comps, IT, EXTC, Data Science, Mechanical, Civil; Portals: Aldel MIS; Location: Palghar).
+       - Do NOT invent absurd claims (like having an airport on campus) and avoid inventing fake human names for specific posts if unknown—instead, refer to the respective designation/office confidently (e.g., "The Head of the AI/ML Department and faculty coordinators located on the 2nd Floor, A-Wing oversee this...").
+    4. LANGUAGE MATCHING: Reply in the EXACT same language/style the user used. If the user asks in English, reply in English. If the user asks in Hinglish (Hindi written in Latin script), reply naturally in Hinglish.
 
     Previous Chat History:
     {history}
 
-    Context: 
+    Retrieved College Context: 
     {context}
 
     User Query: {question}
 
-    Answer:""",
+    Confident & Helpful Answer:""",
     input_variables=["history", "context", "question"]
 )
 
@@ -98,13 +106,15 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
+    # Sirf last 6 messages bhejo taaki context window clean rahe
+    recent_history = request.history[-6:]
     history_text = ""
-    for msg in request.history:
+    for msg in recent_history:
         history_text += f"{msg.role}: {msg.content}\n"
 
-    # YAHAN ADVANCED RETRIEVER USE HOGA
+    # Retrieve top relevant chunks
     docs = advanced_retriever.invoke(request.query)
-    retrieved_context = "\n\n".join([doc.page_content for doc in docs])
+    retrieved_context = "\n\n---\n\n".join([doc.page_content for doc in docs])
     
     final_prompt = prompt_template.format(
         history=history_text,
@@ -115,7 +125,7 @@ async def chat_endpoint(request: ChatRequest):
     response = llm.invoke(final_prompt)
     
     raw_content = response.content
-    final_text = str(raw_content) if raw_content else "Sorry, I could not generate a response."
+    final_text = str(raw_content) if raw_content else "Welcome to SJCEM! Please let me know what specific academic or campus detail you need."
         
     return {
         "answer": final_text
