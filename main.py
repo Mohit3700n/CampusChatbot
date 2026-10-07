@@ -55,7 +55,7 @@ def load_ai_models():
     chunks = splitter.split_documents(docs)
 
     bm25_retriever = BM25Retriever.from_documents(chunks)
-    bm25_retriever.k = 8 # Wapas 8 kar diya
+    bm25_retriever.k = 4 
 
     # ✅ 2. Chroma DB (Hugging Face Cloud API)
     hf_token = os.getenv("HF_TOKEN")
@@ -71,21 +71,25 @@ def load_ai_models():
         persist_directory="./chroma_db_updated", 
         embedding_function=embeddings
     )
-    chroma_retriever = db.as_retriever(search_kwargs={"k": 8}) # Wapas 8 kar diya
+    chroma_retriever = db.as_retriever(search_kwargs={"k": 4}) # Wapas 8 kar diya
     
-    # 3. Ensemble
-    ensemble_retriever = EnsembleRetriever(
+    advanced_retriever = EnsembleRetriever(
         retrievers=[bm25_retriever, chroma_retriever], weights=[0.5, 0.5]
     )
+    
+    # # 3. Ensemble
+    # ensemble_retriever = EnsembleRetriever(
+    #     retrievers=[bm25_retriever, chroma_retriever], weights=[0.5, 0.5]
+    # )
 
-    # 4. Cross-Encoder Reranker (Wapas ON kar diya)
-    cross_encoder = HuggingFaceCrossEncoder(model_name="cross-encoder/ms-marco-MiniLM-L-6-v2")
-    compressor = CrossEncoderReranker(model=cross_encoder, top_n=6)
+    # # 4. Cross-Encoder Reranker (Wapas ON kar diya)
+    # cross_encoder = HuggingFaceCrossEncoder(model_name="cross-encoder/ms-marco-MiniLM-L-6-v2")
+    # compressor = CrossEncoderReranker(model=cross_encoder, top_n=6)
 
-    advanced_retriever = ContextualCompressionRetriever(
-        base_compressor=compressor, 
-        base_retriever=ensemble_retriever
-    )
+    # advanced_retriever = ContextualCompressionRetriever(
+    #     base_compressor=compressor, 
+    #     base_retriever=ensemble_retriever
+    # )
 
     # 5. LLM Setup
     groq_api_key = os.getenv("GROQ_API_KEY")
