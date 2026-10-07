@@ -8,13 +8,10 @@ from typing import List
 
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import MarkdownTextSplitter
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings 
+from langchain_huggingface import HuggingFaceEmbeddings 
 from langchain_community.vectorstores import Chroma
 from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers.ensemble import EnsembleRetriever
-from langchain_classic.retrievers.contextual_compression import ContextualCompressionRetriever
-from langchain_classic.retrievers.document_compressors import CrossEncoderReranker
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 
@@ -57,15 +54,7 @@ def load_ai_models():
     bm25_retriever = BM25Retriever.from_documents(chunks)
     bm25_retriever.k = 4 
 
-    # ✅ 2. Chroma DB (Hugging Face Cloud API)
-    hf_token = os.getenv("HF_TOKEN")
-    if not hf_token:
-        raise ValueError("HF_TOKEN missing hai! Render Dashboard me add karo.")
-
-    embeddings = HuggingFaceInferenceAPIEmbeddings(
-        api_key=hf_token, 
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     
     db = Chroma(
         persist_directory="./chroma_db_updated", 
