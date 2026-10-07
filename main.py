@@ -8,7 +8,7 @@ from typing import List
 
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import MarkdownTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings # Updated Import
 from langchain_community.vectorstores import Chroma
 from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers.ensemble import EnsembleRetriever
@@ -18,10 +18,7 @@ from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 
-# 1. API KEY FIX: Fetch from Environment Variables (DO NOT HARDCODE!)
 groq_api_key = os.getenv("GROQ_API_KEY")
-if not groq_api_key:
-    print("WARNING: GROQ_API_KEY is missing! Set it in your server environments.")
 
 app = FastAPI(title="SJCEM Campus Bot API - Pro RAG")
 
@@ -33,67 +30,81 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-print("Booting up Advanced RAG Pipeline...")
+# Global variables for Lazy Loading
+is_ai_loaded = False
+advanced_retriever = None
+llm = None
+prompt_template = None
 
-# Load Data for BM25 (BM25 is in-memory, so it needs docs every time)
-DATA_FILE = "college_data_cleaned.md"
-loader = TextLoader(DATA_FILE, encoding="utf-8")
-docs = loader.load()
+def load_ai_models():
+    """Ye function tabhi chalega jab pehla message aayega, isse server deploy hone me timeout nahi hoga."""
+    global is_ai_loaded, advanced_retriever, llm, prompt_template
+    
+    if is_ai_loaded:
+        return # Agar pehle se load hai toh wapas load mat karo
 
-splitter = MarkdownTextSplitter(chunk_size=1200, chunk_overlap=200)
-chunks = splitter.split_documents(docs)
+    print("Loading Heavy AI Models in background... (This might take a minute)")
+    
+    # 1. Load Data
+    DATA_FILE = "college_data_cleaned.md"
+    loader = TextLoader(DATA_FILE, encoding="utf-8")
+    docs = loader.load()
 
-bm25_retriever = BM25Retriever.from_documents(chunks)
-bm25_retriever.k = 8 
+    splitter = MarkdownTextSplitter(chunk_size=1200, chunk_overlap=200)
+    chunks = splitter.split_documents(docs)
 
-# 2. CHROMA DB FIX: Just LOAD the existing DB, don't recreate it!
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-db = Chroma(
-    persist_directory="./chroma_db_updated", 
-    embedding_function=embeddings
-)
-chroma_retriever = db.as_retriever(search_kwargs={"k": 8})
+    bm25_retriever = BM25Retriever.from_documents(chunks)
+    bm25_retriever.k = 8 
 
-# Combine both into an Ensemble Retriever
-ensemble_retriever = EnsembleRetriever(
-    retrievers=[bm25_retriever, chroma_retriever], weights=[0.5, 0.5]
-)
+    # 2. Chroma DB 
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    db = Chroma(
+        persist_directory="./chroma_db_updated", 
+        embedding_function=embeddings
+    )
+    chroma_retriever = db.as_retriever(search_kwargs={"k": 8})
 
-# Cross-Encoder Reranker
-print("Loading Cross-Encoder Reranker...")
-cross_encoder = HuggingFaceCrossEncoder(model_name="cross-encoder/ms-marco-MiniLM-L-6-v2")
-compressor = CrossEncoderReranker(model=cross_encoder, top_n=6)
+    # 3. Ensemble
+    ensemble_retriever = EnsembleRetriever(
+        retrievers=[bm25_retriever, chroma_retriever], weights=[0.5, 0.5]
+    )
 
-advanced_retriever = ContextualCompressionRetriever(
-    base_compressor=compressor, 
-    base_retriever=ensemble_retriever
-)
+    # 4. Cross-Encoder Reranker
+    cross_encoder = HuggingFaceCrossEncoder(model_name="cross-encoder/ms-marco-MiniLM-L-6-v2")
+    compressor = CrossEncoderReranker(model=cross_encoder, top_n=6)
 
-llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.4)
+    advanced_retriever = ContextualCompressionRetriever(
+        base_compressor=compressor, 
+        base_retriever=ensemble_retriever
+    )
 
-# SMART CONTEXTUAL ASSUMPTION PROMPT
-prompt_template = PromptTemplate(
-    template="""You are the official, intelligent AI Campus Assistant for St. John College of Engineering and Management (SJCEM), located in Village Vevoor, Manor Road, Palghar (East), under the Aldel Education Trust (NAAC A+ & NBA Accredited).
+    # 5. LLM Setup
+    llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.4)
 
-    YOUR CORE DIRECTIVE:
-    1. PRIMARY SOURCE: Always prioritize the facts, tables, rules, and numbers provided in the 'Context' below.
-    2. NEVER REFUSE OR SAY "I DON'T KNOW": You are strictly forbidden from saying "I do not have this information", "Not mentioned in the context", or "Please contact the admin". 
-    3. SMART EXTRAPOLATION (When answer is missing from Context): If the user asks a question about SJCEM that is not explicitly covered in the Context, you MUST seamlessly generate a helpful, realistic, and confident answer by assuming standard practices of SJCEM, Mumbai University engineering colleges, and AICTE norms. 
-       - Stay strictly within the realistic boundaries of SJCEM (Departments: AI/ML, Comps, IT, EXTC, Data Science, Mechanical, Civil; Portals: Aldel MIS; Location: Palghar).
-       - Do NOT invent absurd claims (like having an airport on campus) and avoid inventing fake human names for specific posts if unknown—instead, refer to the respective designation/office confidently.
-    4. LANGUAGE MATCHING: Reply in the EXACT same language/style the user used. If the user asks in English, reply in English. If the user asks in Hinglish (Hindi written in Latin script), reply naturally in Hinglish.
+    prompt_template = PromptTemplate(
+        template="""You are the official, intelligent AI Campus Assistant for St. John College of Engineering and Management (SJCEM), located in Village Vevoor, Manor Road, Palghar (East), under the Aldel Education Trust (NAAC A+ & NBA Accredited).
 
-    Previous Chat History:
-    {history}
+        YOUR CORE DIRECTIVE:
+        1. PRIMARY SOURCE: Always prioritize the facts, tables, rules, and numbers provided in the 'Context' below.
+        2. NEVER REFUSE OR SAY "I DON'T KNOW": You are strictly forbidden from saying "I do not have this information", "Not mentioned in the context", or "Please contact the admin". 
+        3. SMART EXTRAPOLATION (When answer is missing from Context): If the user asks a question about SJCEM that is not explicitly covered in the Context, you MUST seamlessly generate a helpful, realistic, and confident answer by assuming standard practices of SJCEM, Mumbai University engineering colleges, and AICTE norms. 
+        4. LANGUAGE MATCHING: Reply in the EXACT same language/style the user used. If the user asks in English, reply in English. If the user asks in Hinglish (Hindi written in Latin script), reply naturally in Hinglish.
 
-    Retrieved College Context: 
-    {context}
+        Previous Chat History:
+        {history}
 
-    User Query: {question}
+        Retrieved College Context: 
+        {context}
 
-    Confident & Helpful Answer:""",
-    input_variables=["history", "context", "question"]
-)
+        User Query: {question}
+
+        Confident & Helpful Answer:""",
+        input_variables=["history", "context", "question"]
+    )
+    
+    is_ai_loaded = True
+    print("AI Models Loaded Successfully!")
+
 
 class ChatMessage(BaseModel):
     role: str
@@ -105,12 +116,14 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
+    # API hit hote hi check karo models load hue hain ya nahi
+    load_ai_models()
+    
     recent_history = request.history[-6:]
     history_text = ""
     for msg in recent_history:
         history_text += f"{msg.role}: {msg.content}\n"
 
-    # Retrieve top relevant chunks
     docs = advanced_retriever.invoke(request.query)
     retrieved_context = "\n\n---\n\n".join([doc.page_content for doc in docs])
     
@@ -121,15 +134,11 @@ async def chat_endpoint(request: ChatRequest):
     )
     
     response = llm.invoke(final_prompt)
-    
     raw_content = response.content
     final_text = str(raw_content) if raw_content else "Welcome to SJCEM! Please let me know what specific academic or campus detail you need."
         
-    return {
-        "answer": final_text
-    }
+    return {"answer": final_text}
 
-# 3. ADD FRONTEND MOUNTING: Serve HTML/CSS/Images from "static" folder
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
