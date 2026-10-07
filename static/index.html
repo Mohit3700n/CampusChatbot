@@ -534,8 +534,13 @@
         if (confirm("Clear conversation history?")) {
           chatHistory = [];
           const chatBox = document.getElementById("chat-box");
+          // FIX 1 & 2: Added missing "msg-row bot" wrapper and corrected image path to /static/logo.png
           chatBox.innerHTML = `
-                <div class="msg-wrapper bot">
+            <div class="msg-row bot">
+                <div class="msg-wrapper">
+                    <div class="avatar">
+                        <img src="/static/logo.png" alt="SJCEM" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\\'ph ph-robot\\'></i>'">
+                    </div>
                     <div class="msg">
                         Hello! I am your SJCEM Campus AI Assistant. How can I help you today?
                         <div class="chip-container" id="suggestions">
@@ -545,7 +550,8 @@
                             <button class="chip" onclick="sendQuickMessage('Who is the HOD of AI/ML?')">HOD AI/ML</button>
                         </div>
                     </div>
-                </div>`;
+                </div>
+            </div>`;
         }
       }
 
@@ -647,7 +653,8 @@
         const avatarDiv = document.createElement("div");
         avatarDiv.className = "avatar";
         if (sender === "bot") {
-            avatarDiv.innerHTML = '<img src="logo.png" style="width:20px; height:20px;" onerror="this.parentElement.innerHTML=\'<i class=\\\'ph ph-robot\\\'></i>\'">';
+            // FIX 2: Corrected image path to /static/logo.png
+            avatarDiv.innerHTML = '<img src="/static/logo.png" style="width:20px; height:20px;" onerror="this.parentElement.innerHTML=\'<i class=\\\'ph ph-robot\\\'></i>\'">';
         } else {
             avatarDiv.innerHTML = '<i class="ph ph-user"></i>';
         }
