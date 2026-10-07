@@ -1,7 +1,10 @@
 fastapi
 uvicorn
 langchain
+langchain-community
+langchain-core
+langchain-text-splitters
+langchain-groq
 chromadb
 sentence-transformers
-groq
-huggingface-hub
+rank_bm25
