@@ -162,7 +162,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List
 
-app = FastAPI(title="SJCEM Campus Bot API - Render Safe")
+app = FastAPI(title="SJCEM Campus Bot API - Cloud RAG")
 
 app.add_middleware(
     CORSMiddleware,
@@ -183,48 +183,53 @@ def load_ai_models():
     if is_ai_loaded:
         return 
 
-    print("Lazy Loading Heavy AI Libraries & Models...")
+    print("Connecting to Cloud DB (Pinecone) & Groq...")
     
-    # 🔥 THE FIX: Heavy AI libraries ko yahan function ke andar import kiya hai
-    # Taaki Render ka server deploy hone me timeout na maare!
     from langchain_community.document_loaders import TextLoader
     from langchain_text_splitters import MarkdownTextSplitter
-    from langchain_huggingface import HuggingFaceEmbeddings 
-    from langchain_community.vectorstores import Chroma
     from langchain_community.retrievers import BM25Retriever
     from langchain_classic.retrievers.ensemble import EnsembleRetriever
     from langchain_groq import ChatGroq
     from langchain_core.prompts import PromptTemplate
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+    from langchain_pinecone import PineconeVectorStore
 
+    # 1. Local Keyword Search (BM25)
     DATA_FILE = "college_data_cleaned.md"
-    if not os.path.exists(DATA_FILE):
-        raise FileNotFoundError(f"Error: {DATA_FILE} nahi mila!")
-
     loader = TextLoader(DATA_FILE, encoding="utf-8")
     docs = loader.load()
-
     splitter = MarkdownTextSplitter(chunk_size=1200, chunk_overlap=200)
     chunks = splitter.split_documents(docs)
 
     bm25_retriever = BM25Retriever.from_documents(chunks)
-    bm25_retriever.k = 4 # RAM safe
+    bm25_retriever.k = 4
 
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    # 2. Cloud Vector DB Connection (Pinecone + Google Embeddings)
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    pinecone_api_key = os.getenv("PINECONE_API_KEY")
     
-    db = Chroma(
-        persist_directory="./chroma_db_updated", 
-        embedding_function=embeddings
+    if not google_api_key or not pinecone_api_key:
+        raise ValueError("Google ya Pinecone API Key missing hai Render me!")
+
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/gemini-embedding-2", 
+        google_api_key=google_api_key
     )
-    chroma_retriever = db.as_retriever(search_kwargs={"k": 4}) 
     
+    vectorstore = PineconeVectorStore(
+        index_name="sjcem-chatbot", 
+        embedding=embeddings, 
+        pinecone_api_key=pinecone_api_key
+    )
+    pinecone_retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+
+    # 3. Hybrid Search
     advanced_retriever = EnsembleRetriever(
-        retrievers=[bm25_retriever, chroma_retriever], weights=[0.5, 0.5]
+        retrievers=[bm25_retriever, pinecone_retriever], weights=[0.5, 0.5]
     )
 
+    # 4. LLM
     groq_api_key = os.getenv("GROQ_API_KEY")
-    if not groq_api_key:
-        raise ValueError("GROQ_API_KEY is missing!")
-
     llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.4, api_key=groq_api_key)
 
     prompt_template = PromptTemplate(
@@ -232,7 +237,7 @@ def load_ai_models():
 
         YOUR CORE DIRECTIVE:
         1. PRIMARY SOURCE: Always prioritize the facts, tables, rules, and numbers provided in the 'Context' below.
-        2. NEVER REFUSE OR SAY "I DON'T KNOW": You are strictly forbidden from saying "I do not have this information", "Not mentioned in the context", or "Please contact the admin". 
+        2. NEVER REFUSE OR SAY "I DON'T KNOW".
         3. SMART EXTRAPOLATION: If the user asks a question about SJCEM that is not explicitly covered in the Context, assume standard practices of SJCEM, Mumbai University, and AICTE norms. 
         4. LANGUAGE MATCHING: Reply in the EXACT same language/style the user used.
 
@@ -249,7 +254,7 @@ def load_ai_models():
     )
     
     is_ai_loaded = True
-    print("AI Models Loaded Successfully!")
+    print("Cloud Models Connected Successfully!")
 
 class ChatMessage(BaseModel):
     role: str
