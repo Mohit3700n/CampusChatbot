@@ -155,12 +155,15 @@
 #     return FileResponse("static/index.html")
 
 import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List
+
+load_dotenv()
 
 app = FastAPI(title="SJCEM Campus Bot API - Cloud RAG")
 
@@ -209,7 +212,7 @@ def load_ai_models():
     pinecone_api_key = os.getenv("PINECONE_API_KEY")
     
     if not google_api_key or not pinecone_api_key:
-        raise ValueError("Google ya Pinecone API Key missing hai Render me!")
+        raise ValueError("GOOGLE_API_KEY and PINECONE_API_KEY must be configured.")
 
     embeddings = GoogleGenerativeAIEmbeddings(
         model="models/gemini-embedding-2", 
@@ -230,6 +233,8 @@ def load_ai_models():
 
     # 4. LLM
     groq_api_key = os.getenv("GROQ_API_KEY")
+    if not groq_api_key:
+        raise ValueError("GROQ_API_KEY must be configured.")
     llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.4, api_key=groq_api_key)
 
     prompt_template = PromptTemplate(
@@ -290,10 +295,8 @@ async def chat_endpoint(request: ChatRequest):
         return {"answer": final_text}
         
     except Exception as e:
-        import traceback
-        error_msg = traceback.format_exc()
-        print(error_msg)
-        return {"answer": f"⚠️ **Backend Debug Log:**\n```\n{e}\n```"}
+        print(f"Chat request failed ({type(e).__name__}).")
+        return {"answer": "⚠️ Backend error. Please try again later."}
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

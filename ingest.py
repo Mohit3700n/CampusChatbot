@@ -38,8 +38,7 @@
 # from langchain_pinecone import PineconeVectorStore
 
 # # Apni actual keys yahan daalo (Sirf ek baar upload karne ke liye)
-# os.environ["PINECONE_API_KEY"] = "pcsk_6pXmak_4vqa5BjdkiSQFKUiJuHP1GYiGfkKZzq3CNDKjaojuKfEBB5Yxa3mABEXV59Xne2"
-# os.environ["GOOGLE_API_KEY"] = "AQ.Ab8RN6Iy64sJjwBIA9C-qzW2G2CjtSMyHujQG2jtovRLhfdFLQ"
+
 
 # print("Loading College Data...")
 # loader = TextLoader("college_data_cleaned.md", encoding="utf-8")
@@ -64,14 +63,18 @@
 
 import os
 import time
+from dotenv import load_dotenv
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import MarkdownTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 
-# Apni actual keys yahan daalo
-os.environ["PINECONE_API_KEY"] = "pcsk_6pXmak_4vqa5BjdkiSQFKUiJuHP1GYiGfkKZzq3CNDKjaojuKfEBB5Yxa3mABEXV59Xne2"
-os.environ["GOOGLE_API_KEY"] = "AQ.Ab8RN6Iy64sJjwBIA9C-qzW2G2CjtSMyHujQG2jtovRLhfdFLQ"
+load_dotenv()
+
+google_api_key = os.getenv("GOOGLE_API_KEY")
+pinecone_api_key = os.getenv("PINECONE_API_KEY")
+if not google_api_key or not pinecone_api_key:
+    raise ValueError("GOOGLE_API_KEY and PINECONE_API_KEY must be configured.")
 
 print("Loading College Data...")
 loader = TextLoader("college_data_cleaned.md", encoding="utf-8")
@@ -82,10 +85,17 @@ chunks = splitter.split_documents(docs)
 total_chunks = len(chunks)
 print(f"Total chunks generated: {total_chunks}")
 
-embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-2")
+embeddings = GoogleGenerativeAIEmbeddings(
+    model="models/gemini-embedding-2",
+    google_api_key=google_api_key,
+)
 
 # Pehle Pinecone connection banao (data direct nahi bhej rahe)
-vectorstore = PineconeVectorStore(index_name="sjcem-chatbot", embedding=embeddings)
+vectorstore = PineconeVectorStore(
+    index_name="sjcem-chatbot",
+    embedding=embeddings,
+    pinecone_api_key=pinecone_api_key,
+)
 
 # 80 chunks ka batch size rakha hai taaki 100/min ki limit cross na ho
 BATCH_SIZE = 80
